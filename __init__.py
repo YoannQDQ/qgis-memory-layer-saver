@@ -29,7 +29,7 @@ def description():
     return "Makes layers with memory data providers persistent when the project is saved - the data is saved in GML files alongside the project file"
 
 def version():
-    return "0.9"
+    return "1.0"
 
 def icon():
     return "./plugin.png"

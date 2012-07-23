@@ -147,14 +147,19 @@ class MemoryLayerSaver:
         pg = gml.dataProvider()
         allAttrs = pg.attributeIndexes()
         fmap = pg.fields()
+        copyAttrs = []
         for i in allAttrs:
+            copyAttrs.append(i)
             pl.addAttributes([fmap[i]])
 
-        allAttrs = pg.attributeIndexes()
-        pg.select(allAttrs)
+        pg.select(copyAttrs)
         f = QgsFeature()
         while pg.nextFeature(f):
             pl.addFeatures([f])
+        # Fix for GDAL 1.9 GML driver, which creates fid as a new 
+        # field when saving and reloading a GML based data set.
+        if fmap[0].name() == 'fid':
+            pl.deleteAttributes([0])
         if 'updateFieldMap' in dir(lyr):
             lyr.updateFieldMap()
         lyr.updateExtents()

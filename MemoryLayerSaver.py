@@ -27,7 +27,8 @@ class Writer( QObject ):
             raise ValueError("Cannot open "+self._filename)
         self._dstream = QDataStream( self._file )
         self._dstream.setVersion(QDataStream.Qt_4_5)
-        self._dstream.writeQString("QGIS.MemoryLayerData")
+        for c in "QGis.MemoryLayerData":
+            self._dstream.writeUInt8(c)
         # Version of MLD format
         self._dstream.writeUInt32(1)
 
@@ -99,9 +100,11 @@ class Reader( QObject ):
             raise ValueError("Cannot open "+self._filename)
         self._dstream = QDataStream( self._file )
         self._dstream.setVersion(QDataStream.Qt_4_5)
-        marker = self._dstream.readQString()
-        if marker != "QGIS.MemoryLayerData":
-            raise ValueError(self._filename + " is not a valid memory layer data file")
+        for c in "QGis.MemoryLayerData":
+
+            ct = self._dstream.readUInt8()
+            if ct != c:
+                raise ValueError(self._filename + " is not a valid memory layer data file")
         version = self._dstream.readInt32()
         if version != 1:
             raise ValueError(self._filename + " is not compatible with this version of the MemoryLayerSaver plugin")
@@ -286,7 +289,7 @@ class MemoryLayerSaver:
         name = QgsProject.instance().fileName()
         if not name:
             return ''
-        lname = name+".mdldata"
+        lname = name+".mldata"
         return lname
 
     def clearMemoryProvider(self, lyr):

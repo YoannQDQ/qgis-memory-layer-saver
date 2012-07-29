@@ -26,6 +26,11 @@ class Writer( QObject ):
         if not self._file.open(QIODevice.WriteOnly):
             raise ValueError("Cannot open "+self._filename)
         self._dstream = QDataStream( self._file )
+        self._dstream.setVersion(QDataStream.Qt_4_5)
+        self._dstream.writeQString("QGIS.MemoryLayerData")
+        # Version of MLD format
+        self._dstream.writeUInt32(1)
+
 
     def close( self ):
         try:
@@ -93,6 +98,14 @@ class Reader( QObject ):
         if not self._file.open(QIODevice.ReadOnly):
             raise ValueError("Cannot open "+self._filename)
         self._dstream = QDataStream( self._file )
+        self._dstream.setVersion(QDataStream.Qt_4_5)
+        marker = self._dstream.readQString()
+        if marker != "QGIS.MemoryLayerData":
+            raise ValueError(self._filename + " is not a valid memory layer data file")
+        version = self._dstream.readInt32()
+        if version != 1:
+            raise ValueError(self._filename + " is not compatible with this version of the MemoryLayerSaver plugin")
+
 
     def close( self ):
         try:
@@ -235,7 +248,6 @@ class MemoryLayerSaver:
                 with Reader(filename) as reader:
                     reader.readVectorLayers()
             except:
-                raise
                 QMessageBox.information(self._iface.mainWindow(),"Error reloading memory layers",
                                     str(sys.exc_info()[1]) )
 
@@ -253,7 +265,6 @@ class MemoryLayerSaver:
                     for layer in layers:
                         writer.writeVectorLayer( layer )
         except:
-            raise
             QMessageBox.information(self._iface.mainWindow(),"Error saving memory layers",
                                     str(sys.exc_info()[1]) )
 

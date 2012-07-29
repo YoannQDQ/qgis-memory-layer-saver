@@ -1,9 +1,166 @@
+from __future__ import with_statement
+
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
 from qgis.core import *
 import sys
 
-# import Resources
+
+class Writer( QObject ):
+
+    def __init__( self, filename ):
+        QObject.__init__( self, None )
+        self._filename = filename
+        self._file = None
+        self._dstream = None
+
+    def __enter__( self ):
+        self.open()
+        return self
+
+    def __exit__( self, exc_type, exc_value, traceback ):
+        self.close
+
+    def open( self ):
+        self._file = QFile(self._filename)
+        if not self._file.open(QIODevice.WriteOnly):
+            raise ValueError("Cannot open "+self._filename)
+        self._dstream = QDataStream( self._file )
+
+    def close( self ):
+        try:
+            self._dstream.setDevice(None)
+            self._file.close()
+        except:
+            pass
+        self._dstream=None
+        self._file=None
+        
+    def writeVectorLayer( self, layer ):
+        if not self._dstream:
+            raise ValueError("Layer stream not open for reading")
+        ds=self._dstream
+        dp = layer.dataProvider()
+        attr=dp.attributeIndexes()
+        dp.select(attr)
+        ds.writeQString(layer.id())
+        ds.writeInt16(len(attr))
+        flds = dp.fields()
+        attr=sorted(flds.keys())
+        for i in attr:
+            fld=dp.fields()[i]
+            ds.writeQString(fld.name())
+            ds.writeInt16(int(fld.type()))
+            ds.writeQString(fld.typeName())
+            ds.writeInt16(fld.length())
+            ds.writeInt16(fld.precision())
+            ds.writeQString(fld.comment())
+        feat=QgsFeature()
+        while dp.nextFeature(feat):
+            ds.writeBool(True)
+            if attr:
+                fmap = feat.attributeMap()
+                for i in attr:
+                    if i in fmap:
+                        ds.writeQVariant(fmap[i])
+                    else:
+                        ds.writeQVariant(QVariant())
+            geom = feat.geometry()
+            if not geom:
+                ds.writeUInt32(0)
+            else:
+                ds.writeUInt32(geom.wkbSize())
+                ds.writeRawData(geom.asWkb())
+                print "Writing geom:",geom.exportToWkt()
+        ds.writeBool(False)
+
+class Reader( QObject ):
+
+    def __init__( self, filename ):
+        self._filename = filename
+        self._file=None
+        self._dstream=None
+
+    def __enter__( self ):
+        self.open()
+        return self
+
+    def __exit__( self, exc_type, exc_value, traceback ):
+        self.close
+
+    def open( self ):
+        self._file = QFile(self._filename)
+        if not self._file.open(QIODevice.ReadOnly):
+            raise ValueError("Cannot open "+self._filename)
+        self._dstream = QDataStream( self._file )
+
+    def close( self ):
+        try:
+            self._dstream.setDevice(None)
+            self._file.close()
+        except:
+            pass
+        self._dstream=None
+        self._file=None
+
+    def readVectorLayers( self ):
+        while True:
+            if not self.readVectorLayer():
+                break
+        
+    def readVectorLayer( self ):
+        if not self._dstream:
+            raise ValueError("Layer stream not open for reading")
+        ds=self._dstream
+        if ds.atEnd():
+            return False
+
+        id=ds.readQString()
+        layer=QgsMapLayerRegistry.instance().mapLayer(id)
+        if not layer:
+            raise ValueError(u"Invalid layer "+unicode(id)+u" in "+unicode(self._filename))
+
+        dp = layer.dataProvider()
+        if dp.featureCount() > 0:
+            raise ValueError(u"Layer "+id+" is already loaded")
+        attr=dp.attributeIndexes()
+        dp.deleteAttributes(attr)
+
+        nattr = ds.readInt16()
+        attr=range(nattr)
+        for i in attr:
+            name=ds.readQString()
+            qtype=ds.readInt16()
+            typename=ds.readQString()
+            length=ds.readInt16()
+            precision=ds.readInt16()
+            comment=ds.readQString()
+            fld=QgsField(name,qtype,typename,length,precision,comment)
+            dp.addAttributes([fld])
+
+        nulgeom=QgsGeometry()
+        attr=range(nattr)
+        while ds.readBool():
+            feat=QgsFeature()
+            fmap={}
+            for i in attr:
+                fmap[i]=ds.readQVariant()
+            feat.setAttributeMap(fmap)
+
+            wkbSize = ds.readUInt32()
+            if wkbSize == 0:
+                feat.setGeometry(nullgeom)
+            else:
+                geom=QgsGeometry()
+                geom.fromWkb(ds.readRawData(wkbSize))
+                feat.setGeometry(geom)
+                print "Geometry set!", geom.exportToWkt()
+            dp.addFeatures([feat])
+        if 'updateFieldMap' in dir(layer):
+            layer.updateFieldMap()
+        layer.updateExtents()
+
+        return True
 
 class MemoryLayerSaver:
 
@@ -71,15 +228,34 @@ class MemoryLayerSaver:
         pass
 
     def loadData(self):
-        self.loadMemoryLayers()
+        filename = self.memoryLayerFile()
+        file = QFile(filename)
+        if file.exists():
+            try:
+                with Reader(filename) as reader:
+                    reader.readVectorLayers()
+            except:
+                raise
+                QMessageBox.information(self._iface.mainWindow(),"Error reloading memory layers",
+                                    str(sys.exc_info()[1]) )
 
     def saveData(self):
         try:
-            self.deleteMemoryDataFiles()
-            self.saveMemoryLayers()
+            filename = self.memoryLayerFile()
+            try:
+                file=QFile(finfo.filePath())
+                file.remove()
+            except:
+                pass
+            layers = list(self.memoryLayers())
+            if layers:
+                with Writer(filename) as writer:
+                    for layer in layers:
+                        writer.writeVectorLayer( layer )
         except:
+            raise
             QMessageBox.information(self._iface.mainWindow(),"Error saving memory layers",
-                                    sys.exc_info[1] )
+                                    str(sys.exc_info()[1]) )
 
     def memoryLayers(self):
         for l in QgsMapLayerRegistry.instance().mapLayers().values():
@@ -95,76 +271,13 @@ class MemoryLayerSaver:
         use = l.customProperty("SaveMemoryProvider")
         return use.isNull() or not use.toBool()
 
-
-    def memoryLayerFile( self, layer ):
+    def memoryLayerFile( self ):
         name = QgsProject.instance().fileName()
         if not name:
             return ''
-        id = layer.getLayerID()
-        lname = name+".md_"+id+".gml"
+        lname = name+".mdldata"
         return lname
 
-    def memoryLayerFiles( self ):
-        proj = QFileInfo( QgsProject.instance().fileName() )
-        projd = proj.absoluteDir()
-        name = proj.fileName()
-        if not name:
-            return None
-        filters = QStringList()
-        filters.append(name+".md_*.gml")
-        filters.append(name+".md_*.xsd")
-        projd.setNameFilters(filters)
-        return projd.entryInfoList()
-
-    def saveMemoryLayers(self):
-        # Create a gml file for each memory layer
-        for lyr in self.memoryLayers():
-            name = self.memoryLayerFile(lyr)
-            if name:
-                QgsVectorFileWriter.writeAsVectorFormat(lyr,name,"UTF-8",None,"GML")
-
-
-    def loadMemoryLayers(self):
-        for lyr in self.memoryLayers():
-            name = self.memoryLayerFile(lyr)
-            if QFileInfo(name).exists():
-                self.loadMemoryLayer(lyr,name)
-
-    def loadMemoryLayer( self, lyr, gmlFile ):
-        settings = QSettings()
-        prjSetting = settings.value("/Projections/defaultBehaviour")
-        try:
-            settings.setValue("/Projections/defaultBehaviour", QVariant(""))
-            gml = QgsVectorLayer(gmlFile,"tmp","ogr")
-        finally:
-            if prjSetting:
-                settings.setValue("/Projections/defaultBehaviour",prjSetting)
-        if not gml or not gml.isValid():
-            return
-        self.clearMemoryProvider(lyr)
-        pl = lyr.dataProvider()
-
-        pg = gml.dataProvider()
-        allAttrs = pg.attributeIndexes()
-        fmap = pg.fields()
-        copyAttrs = []
-        for i in allAttrs:
-            copyAttrs.append(i)
-            pl.addAttributes([fmap[i]])
-
-        pg.select(copyAttrs)
-        f = QgsFeature()
-        while pg.nextFeature(f):
-            pl.addFeatures([f])
-        # Fix for GDAL 1.9 GML driver, which creates fid as a new 
-        # field when saving and reloading a GML based data set.
-        if fmap[0].name() == 'fid':
-            pl.deleteAttributes([0])
-        if 'updateFieldMap' in dir(lyr):
-            lyr.updateFieldMap()
-        lyr.updateExtents()
-
-            
     def clearMemoryProvider(self, lyr):
         pl = lyr.dataProvider()
         pl.select()
@@ -172,15 +285,6 @@ class MemoryLayerSaver:
         while pl.nextFeature(f):
             pl.deleteFeatures(f.id())
         pl.deleteAttributes(pl.attributeIndexes())
-
-    def deleteMemoryDataFiles(self):
-        # Delete existing memory layer data
-        files = self.memoryLayerFiles()
-        if not files: 
-            return
-        for finfo in files:
-            file=QFile(finfo.filePath())
-            file.remove()
 
     def setProjectDirty2(self,value1,value2):
         self.setProjectDirty()

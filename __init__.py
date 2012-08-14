@@ -29,7 +29,7 @@ def description():
     return "Makes layers with memory data providers persistent when the project is saved - the data is saved in a QDataStream file alongside the project file"
 
 def version():
-    return "1.1"
+    return "2.0"
 
 def icon():
     return "./plugin.png"

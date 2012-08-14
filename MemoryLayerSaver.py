@@ -42,7 +42,11 @@ class Writer( QObject ):
         self._dstream=None
         self._file=None
         
-    def writeVectorLayer( self, layer ):
+    def writeLayers( self, layers ):
+        for layer in layers:
+            self.writeLayer( layer )
+
+    def writeLayer( self, layer ):
         if not self._dstream:
             raise ValueError("Layer stream not open for reading")
         ds=self._dstream
@@ -119,26 +123,29 @@ class Reader( QObject ):
         self._dstream=None
         self._file=None
 
-    def readVectorLayers( self ):
-        while True:
-            if not self.readVectorLayer():
-                break
-        
-    def readVectorLayer( self ):
+    def readLayers( self, layers ):
         if not self._dstream:
             raise ValueError("Layer stream not open for reading")
         ds=self._dstream
-        if ds.atEnd():
-            return False
 
-        id=ds.readQString()
-        layer=QgsMapLayerRegistry.instance().mapLayer(id)
-        if not layer:
-            raise ValueError(u"Invalid layer "+unicode(id)+u" in "+unicode(self._filename))
+        while True:
+            if ds.atEnd():
+                return 
+            id=ds.readQString()
+            layer = None
+            for l in layers:
+                if l.id() == id:
+                    layer = l
+            if not layer:
+                 self.skipLayer()
+            else:
+                self.readLayer( layer )
 
+    def readLayer( self, layer ):
+        ds=self._dstream
         dp = layer.dataProvider()
         if dp.featureCount() > 0:
-            raise ValueError(u"Layer "+id+" is already loaded")
+            raise ValueError(u"Memory layer "+id+" is already loaded")
         attr=dp.attributeIndexes()
         dp.deleteAttributes(attr)
 
@@ -155,7 +162,6 @@ class Reader( QObject ):
             dp.addAttributes([fld])
 
         nulgeom=QgsGeometry()
-        attr=range(nattr)
         while ds.readBool():
             feat=QgsFeature()
             fmap={}
@@ -176,7 +182,23 @@ class Reader( QObject ):
             layer.updateFieldMap()
         layer.updateExtents()
 
-        return True
+    def skipLayer( self ):
+        ds=self._dstream
+        nattr = ds.readInt16()
+        attr=range(nattr)
+        for i in attr:
+            name=ds.readQString()
+            qtype=ds.readInt16()
+            typename=ds.readQString()
+            length=ds.readInt16()
+            precision=ds.readInt16()
+            comment=ds.readQString()
+        while ds.readBool():
+            for i in attr:
+                ds.readQVariant()
+            wkbSize = ds.readUInt32()
+            if wkbSize > 0:
+                ds.readRawData(wkbSize)
 
 class MemoryLayerSaver:
 
@@ -247,12 +269,15 @@ class MemoryLayerSaver:
         filename = self.memoryLayerFile()
         file = QFile(filename)
         if file.exists():
-            try:
-                with Reader(filename) as reader:
-                    reader.readVectorLayers()
-            except:
-                QMessageBox.information(self._iface.mainWindow(),"Error reloading memory layers",
-                                    str(sys.exc_info()[1]) )
+            layers = list(self.memoryLayers())
+            if layers:
+                try:
+                    with Reader(filename) as reader:
+                        reader.readLayers(layers)
+                except:
+                    QMessageBox.information(
+                        self._iface.mainWindow(),"Error reloading memory layers",
+                        str(sys.exc_info()[1]) ) 
 
     def saveData(self):
         try:
@@ -265,8 +290,7 @@ class MemoryLayerSaver:
             layers = list(self.memoryLayers())
             if layers:
                 with Writer(filename) as writer:
-                    for layer in layers:
-                        writer.writeVectorLayer( layer )
+                    writer.writeLayers( layers )
         except:
             QMessageBox.information(self._iface.mainWindow(),"Error saving memory layers",
                                     str(sys.exc_info()[1]) )

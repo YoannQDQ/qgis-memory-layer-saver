@@ -29,16 +29,19 @@ def description():
     return "Makes layers with memory data providers persistent when the project is saved - the data is saved in a QDataStream file alongside the project file"
 
 def version():
-    return "2.0"
+    return "3.0"
 
 def icon():
     return "./plugin.png"
 
 def qgisMinimumVersion():
-    return "1.6"
+    return "1.9"
 
-def authorName():
+def email():
     return "ccrook@linz.govt.nz <Chris Crook>"
+
+def author():
+    return "Chris Crook"
 
 def classFactory(iface):
     return Plugin(iface)

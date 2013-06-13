@@ -22,27 +22,6 @@
 
 from Plugin import Plugin
 
-def name():
-    return "MemoryLayerSaver"
-
-def description():
-    return "Makes layers with memory data providers persistent when the project is saved - the data is saved in a QDataStream file alongside the project file"
-
-def version():
-    return "3.0"
-
-def icon():
-    return "./plugin.png"
-
-def qgisMinimumVersion():
-    return "1.9"
-
-def email():
-    return "ccrook@linz.govt.nz <Chris Crook>"
-
-def author():
-    return "Chris Crook"
-
 def classFactory(iface):
     return Plugin(iface)
 

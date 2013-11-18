@@ -75,7 +75,6 @@ class Writer( QObject ):
             else:
                 ds.writeUInt32(geom.wkbSize())
                 ds.writeRawData(geom.asWkb())
-                print "Writing geom:",geom.exportToWkt()
         ds.writeBool(False)
 
 class Reader( QObject ):

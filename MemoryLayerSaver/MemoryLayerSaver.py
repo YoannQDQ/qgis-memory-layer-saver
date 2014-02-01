@@ -159,7 +159,9 @@ class Reader( QObject ):
         while ds.readBool():
             feat=QgsFeature(fields)
             for i in attr:
-                feat[i]=ds.readQVariant()
+                value=ds.readQVariant()
+                if value is not None:
+                    feat[i]=value
 
             wkbSize = ds.readUInt32()
             if wkbSize == 0:

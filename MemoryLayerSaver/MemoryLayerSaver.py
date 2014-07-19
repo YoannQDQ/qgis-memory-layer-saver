@@ -269,7 +269,7 @@ class MemoryLayerSaver:
                 except:
                     QMessageBox.information(
                         self._iface.mainWindow(),"Error reloading memory layers",
-                        str(sys.exc_info()[1]) ) 
+                        unicode(sys.exc_info()[1]) ) 
 
     def saveData(self):
         try:
@@ -286,7 +286,7 @@ class MemoryLayerSaver:
         except:
             raise
             QMessageBox.information(self._iface.mainWindow(),"Error saving memory layers",
-                                    str(sys.exc_info()[1]) )
+                                    unicode(sys.exc_info()[1]) )
 
     def memoryLayers(self):
         for l in QgsMapLayerRegistry.instance().mapLayers().values():
@@ -324,7 +324,7 @@ class MemoryLayerSaver:
         QgsProject.instance().dirty(True)
 
     def showInfo(self):
-        names = [str(l.name()) for l in self.memoryLayers()]
+        names = [unicode(l.name()) for l in self.memoryLayers()]
         message = ''
         if len(names) == 0:
             message = "This project contains no memory data provider layers to be saved"

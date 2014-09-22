@@ -70,7 +70,10 @@ class Writer( QObject ):
             ds.writeBool(True)
             if attr:
                 for field in fldnames:
-                    ds.writeQVariant(feat[field])
+                    try:
+                        ds.writeQVariant(feat[field])
+                    except KeyError:
+                        ds.writeQVariant(None)
             geom = feat.geometry()
             if not geom:
                 ds.writeUInt32(0)

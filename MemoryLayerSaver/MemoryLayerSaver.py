@@ -55,8 +55,10 @@ class Writer( QObject ):
         ds.writeQString(layer.id())
         ds.writeInt16(len(attr))
         flds = dp.fields()
+        fldnames=[]
         for i in attr:
             fld=dp.fields()[i]
+            fldnames.append(fld.name())
             ds.writeQString(fld.name())
             ds.writeInt16(int(fld.type()))
             ds.writeQString(fld.typeName())
@@ -67,11 +69,8 @@ class Writer( QObject ):
         for feat in layer.getFeatures():
             ds.writeBool(True)
             if attr:
-                for i in attr:
-                    try:
-                        ds.writeQVariant(feat[i])
-                    except:
-                        ds.writeQVariant(None)
+                for field in fldnames:
+                    ds.writeQVariant(feat[field])
             geom = feat.geometry()
             if not geom:
                 ds.writeUInt32(0)

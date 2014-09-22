@@ -68,7 +68,10 @@ class Writer( QObject ):
             ds.writeBool(True)
             if attr:
                 for i in attr:
-                    ds.writeQVariant(feat[i])
+                    try:
+                        ds.writeQVariant(feat[i])
+                    except:
+                        ds.writeQVariant(None)
             geom = feat.geometry()
             if not geom:
                 ds.writeUInt32(0)

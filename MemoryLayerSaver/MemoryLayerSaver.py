@@ -52,11 +52,9 @@ class Writer( QObject ):
         ds=self._dstream
         dp = layer.dataProvider()
         attr=dp.attributeIndexes()
-        dp.select(attr)
         ds.writeQString(layer.id())
         ds.writeInt16(len(attr))
         flds = dp.fields()
-        attr=sorted(flds.keys())
         for i in attr:
             fld=dp.fields()[i]
             ds.writeQString(fld.name())
@@ -65,23 +63,21 @@ class Writer( QObject ):
             ds.writeInt16(fld.length())
             ds.writeInt16(fld.precision())
             ds.writeQString(fld.comment())
-        feat=QgsFeature()
-        while dp.nextFeature(feat):
+
+        for feat in layer.getFeatures():
             ds.writeBool(True)
             if attr:
-                fmap = feat.attributeMap()
                 for i in attr:
-                    if i in fmap:
-                        ds.writeQVariant(fmap[i])
-                    else:
-                        ds.writeQVariant(QVariant())
+                    try:
+                        ds.writeQVariant(feat[i])
+                    except:
+                        ds.writeQVariant(None)
             geom = feat.geometry()
             if not geom:
                 ds.writeUInt32(0)
             else:
                 ds.writeUInt32(geom.wkbSize())
                 ds.writeRawData(geom.asWkb())
-                print "Writing geom:",geom.exportToWkt()
         ds.writeBool(False)
 
 class Reader( QObject ):
@@ -161,13 +157,14 @@ class Reader( QObject ):
             fld=QgsField(name,qtype,typename,length,precision,comment)
             dp.addAttributes([fld])
 
-        nulgeom=QgsGeometry()
+        nullgeom=QgsGeometry()
+        fields=dp.fields()
         while ds.readBool():
-            feat=QgsFeature()
-            fmap={}
+            feat=QgsFeature(fields)
             for i in attr:
-                fmap[i]=ds.readQVariant()
-            feat.setAttributeMap(fmap)
+                value=ds.readQVariant()
+                if value is not None:
+                    feat[i]=value
 
             wkbSize = ds.readUInt32()
             if wkbSize == 0:
@@ -176,10 +173,8 @@ class Reader( QObject ):
                 geom=QgsGeometry()
                 geom.fromWkb(ds.readRawData(wkbSize))
                 feat.setGeometry(geom)
-                print "Geometry set!", geom.exportToWkt()
             dp.addFeatures([feat])
-        if 'updateFieldMap' in dir(layer):
-            layer.updateFieldMap()
+        layer.updateFields()
         layer.updateExtents()
 
     def skipLayer( self ):
@@ -277,7 +272,7 @@ class MemoryLayerSaver:
                 except:
                     QMessageBox.information(
                         self._iface.mainWindow(),"Error reloading memory layers",
-                        str(sys.exc_info()[1]) ) 
+                        unicode(sys.exc_info()[1]) ) 
 
     def saveData(self):
         try:
@@ -292,8 +287,9 @@ class MemoryLayerSaver:
                 with Writer(filename) as writer:
                     writer.writeLayers( layers )
         except:
+            raise
             QMessageBox.information(self._iface.mainWindow(),"Error saving memory layers",
-                                    str(sys.exc_info()[1]) )
+                                    unicode(sys.exc_info()[1]) )
 
     def memoryLayers(self):
         for l in QgsMapLayerRegistry.instance().mapLayers().values():
@@ -307,7 +303,7 @@ class MemoryLayerSaver:
         if not pr or pr.name() != 'memory':
             return False
         use = l.customProperty("SaveMemoryProvider")
-        return use.isNull() or not use.toBool()
+        return not (use == False)
 
     def memoryLayerFile( self ):
         name = QgsProject.instance().fileName()
@@ -331,7 +327,7 @@ class MemoryLayerSaver:
         QgsProject.instance().dirty(True)
 
     def showInfo(self):
-        names = [str(l.name()) for l in self.memoryLayers()]
+        names = [unicode(l.name()) for l in self.memoryLayers()]
         message = ''
         if len(names) == 0:
             message = "This project contains no memory data provider layers to be saved"

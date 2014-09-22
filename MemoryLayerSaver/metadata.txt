@@ -1,0 +1,13 @@
+[general]
+name=Memory Layer Saver
+description=Makes layers with memory data providers persistent when the project is saved - the data is saved in a QDataStream file alongside the project file
+category=Plugins
+version=3.4
+experimental=False
+qgisMinimumVersion=2.0
+author=Chris Crook
+email=ccrook@linz.govt.nz
+homepage=http://github.com/ccrook/QGIS-MemoryLayerSaver-Plugin
+tracker=http://github.com/ccrook/QGIS-MemoryLayerSaver-Plugin/issues
+repository=http://github.com/ccrook/QGIS-MemoryLayerSaver-Plugin
+icon=./plugin.png

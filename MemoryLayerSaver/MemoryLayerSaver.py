@@ -231,23 +231,23 @@ class MemoryLayerSaver:
 
     def connectProvider( self, layer ):
         if self.isSavedLayer(layer):
-            QObject.connect(layer, SIGNAL("committedAttributesDeleted(const QString &, const QgsAttributeIds &)"),self.setProjectDirty2)
-            QObject.connect(layer, SIGNAL("committedAttributesAdded(const QString &, const QList<QgsField> &)"),self.setProjectDirty2)
+            QObject.connect(layer, SIGNAL("committedAttributesDeleted"),self.setProjectDirty2)
+            QObject.connect(layer, SIGNAL("committedAttributesAdded"),self.setProjectDirty2)
             if self._deleteSignalOk:
-                QObject.connect(layer, SIGNAL("committedFeaturesRemoved(const QString &, const QgsFeatureIds & )"),self.setProjectDirty2)
-            QObject.connect(layer, SIGNAL("committedFeaturesAdded(const QString &, const QgsFeatureList &)"),self.setProjectDirty2)
-            QObject.connect(layer, SIGNAL("committedAttributeValuesChanges(const QString &, const QgsChangedAttributesMap &)"),self.setProjectDirty2)
-            QObject.connect(layer, SIGNAL("committedGeometriesChanges(const QString &, const QgsGeometryMap &)"),self.setProjectDirty2)
+                QObject.connect(layer, SIGNAL("committedFeaturesRemoved"),self.setProjectDirty2)
+            QObject.connect(layer, SIGNAL("committedFeaturesAdded"),self.setProjectDirty2)
+            QObject.connect(layer, SIGNAL("committedAttributeValuesChanges"),self.setProjectDirty2)
+            QObject.connect(layer, SIGNAL("committedGeometriesChanges"),self.setProjectDirty2)
 
     def disconnectProvider( self, layer ):
         if self.isSavedLayer(layer):
-            QObject.disconnect(layer, SIGNAL("committedAttributesDeleted(const QString &, const QgsAttributeIds &)"),self.setProjectDirty2)
-            QObject.disconnect(layer, SIGNAL("committedAttributesAdded(const QString &, const QList<QgsField> &)"),self.setProjectDirty2)
+            QObject.disconnect(layer, SIGNAL("committedAttributesDeleted"),self.setProjectDirty2)
+            QObject.disconnect(layer, SIGNAL("committedAttributesAdded"),self.setProjectDirty2)
             if self._deleteSignalOk:
-                QObject.disconnect(layer, SIGNAL("committedFeaturesRemoved(const QString &, const QgsFeatureIds & )"),self.setProjectDirty2)
-            QObject.disconnect(layer, SIGNAL("committedFeaturesAdded(const QString &, const QgsFeatureList &)"),self.setProjectDirty2)
-            QObject.disconnect(layer, SIGNAL("committedAttributeValuesChanges(const QString &, const QgsChangedAttributesMap &)"),self.setProjectDirty2)
-            QObject.disconnect(layer, SIGNAL("committedGeometriesChanges(const QString &, const QgsGeometryMap &)"),self.setProjectDirty2)
+                QObject.disconnect(layer, SIGNAL("committedFeaturesRemoved"),self.setProjectDirty2)
+            QObject.disconnect(layer, SIGNAL("committedFeaturesAdded"),self.setProjectDirty2)
+            QObject.disconnect(layer, SIGNAL("committedAttributeValuesChanges"),self.setProjectDirty2)
+            QObject.disconnect(layer, SIGNAL("committedGeometriesChanges"),self.setProjectDirty2)
 
     def connectMemoryLayers( self ):
         for layer in self.memoryLayers():

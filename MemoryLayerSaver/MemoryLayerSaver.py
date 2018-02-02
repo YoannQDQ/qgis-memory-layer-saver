@@ -66,6 +66,8 @@ class Writer( QObject ):
             ds.writeInt16(fld.precision())
             ds.writeQString(fld.comment())
 
+        subset=layer.subsetString()
+        layer.setSubsetString('')
         for feat in layer.getFeatures():
             ds.writeBool(True)
             if attr:
@@ -81,6 +83,7 @@ class Writer( QObject ):
                 ds.writeUInt32(geom.wkbSize())
                 ds.writeRawData(geom.asWkb())
         ds.writeBool(False)
+        layer.setSubsetString(subset)
 
 class Reader( QObject ):
 

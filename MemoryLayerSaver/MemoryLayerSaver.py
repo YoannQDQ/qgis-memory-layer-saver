@@ -30,7 +30,7 @@ class Writer( QObject ):
         for c in "QGis.MemoryLayerData":
             self._dstream.writeUInt8(c)
         # Version of MLD format
-        self._dstream.writeUInt32(1)
+        self._dstream.writeUInt32(2)
 
 
     def close( self ):
@@ -51,8 +51,10 @@ class Writer( QObject ):
             raise ValueError("Layer stream not open for reading")
         ds=self._dstream
         dp = layer.dataProvider()
+        ss = layer.subsetString()
         attr=dp.attributeIndexes()
         ds.writeQString(layer.id())
+        ds.writeQString(ss)
         ds.writeInt16(len(attr))
         flds = dp.fields()
         fldnames=[]
@@ -66,7 +68,6 @@ class Writer( QObject ):
             ds.writeInt16(fld.precision())
             ds.writeQString(fld.comment())
 
-        subset=layer.subsetString()
         layer.setSubsetString('')
         for feat in layer.getFeatures():
             ds.writeBool(True)
@@ -83,7 +84,7 @@ class Writer( QObject ):
                 ds.writeUInt32(geom.wkbSize())
                 ds.writeRawData(geom.asWkb())
         ds.writeBool(False)
-        layer.setSubsetString(subset)
+        layer.setSubsetString(ss)
 
 class Reader( QObject ):
 
@@ -91,6 +92,7 @@ class Reader( QObject ):
         self._filename = filename
         self._file=None
         self._dstream=None
+        self._version=None
 
     def __enter__( self ):
         self.open()
@@ -111,8 +113,9 @@ class Reader( QObject ):
             if ct != c:
                 raise ValueError(self._filename + " is not a valid memory layer data file")
         version = self._dstream.readInt32()
-        if version != 1:
+        if version not in (1,2):
             raise ValueError(self._filename + " is not compatible with this version of the MemoryLayerSaver plugin")
+        self._version=version
 
 
     def close( self ):
@@ -149,7 +152,9 @@ class Reader( QObject ):
             raise ValueError(u"Memory layer "+id+" is already loaded")
         attr=dp.attributeIndexes()
         dp.deleteAttributes(attr)
-
+        ss=''
+        if self._version > 1:
+            ss=ds.readQString()
         nattr = ds.readInt16()
         attr=range(nattr)
         for i in attr:
@@ -179,6 +184,8 @@ class Reader( QObject ):
                 geom.fromWkb(ds.readRawData(wkbSize))
                 feat.setGeometry(geom)
             dp.addFeatures([feat])
+            x=ds.readBool()
+        layer.setSubsetString(ss)
         layer.updateFields()
         layer.updateExtents()
 

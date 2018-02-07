@@ -184,7 +184,6 @@ class Reader( QObject ):
                 geom.fromWkb(ds.readRawData(wkbSize))
                 feat.setGeometry(geom)
             dp.addFeatures([feat])
-            x=ds.readBool()
         layer.setSubsetString(ss)
         layer.updateFields()
         layer.updateExtents()

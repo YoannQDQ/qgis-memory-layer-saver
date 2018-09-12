@@ -1,12 +1,13 @@
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
 from qgis.core import *
 import sys
 
 # import Resources
 
-from MemoryLayerSaver import MemoryLayerSaver
-import Resources
+from .MemoryLayerSaver import MemoryLayerSaver
+from . import Resources
 
 class Plugin:
 
@@ -19,7 +20,7 @@ class Plugin:
         self._infoAction = QAction(QIcon(":plugins/MemoryLayerSaver/plugin.png"),
                                    "Display memory layer information",
                                    self._iface.mainWindow())
-        QObject.connect(self._infoAction,SIGNAL("triggered()"),self._saver.showInfo)
+        self._infoAction.triggered.connect(self._saver.showInfo)
         self._iface.addPluginToMenu("&Memory layer saver", self._infoAction)
 
     def unload( self ):

@@ -6,7 +6,7 @@ about=Makes layers with memory data providers persistent
  The memory provider data is saved in a portable binary format (QDataStream)
  that is saved with extension .mldata alongside the project file.
 category=Plugins
-version=4.0.2
+version=4.0.3
 experimental=False
 qgisMinimumVersion=3.0
 author=Chris Crook

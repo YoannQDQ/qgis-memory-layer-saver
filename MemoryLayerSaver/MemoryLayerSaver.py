@@ -77,7 +77,8 @@ class Writer( QObject ):
             ds.writeQString(fld.comment())
 
         layer.setSubsetString('')
-        for feat in layer.getFeatures():
+        feats = layer.getFeatures()
+        for feat in feats:
             ds.writeBool(True)
             if attr:
                 for field in fldnames:

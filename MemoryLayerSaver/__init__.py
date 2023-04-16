@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-#
 #       __init__.py
 #
 #       Copyright 2009 Chris Crook (ccrook@linz.govt.nz)
@@ -22,7 +19,6 @@
 
 from .Plugin import Plugin
 
+
 def classFactory(iface):
     return Plugin(iface)
-
-

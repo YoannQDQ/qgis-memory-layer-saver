@@ -2,11 +2,11 @@ from qgis.core import QgsSettings
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
 
-from . import Resources  # noqa
-from .MemoryLayerSaver import MemoryLayerSaver
+from . import resources_rc  # noqa
+from .memory_layer_saver import MemoryLayerSaver
 
 
-class Plugin:
+class MemoryLayerSaverPlugin:
     _MemoryWarningSetting = "askToSaveMemoryLayers"
     _MemorySavedSetting = "MemoryLayerSaver/memoryLayerSaveSetting"
 
@@ -18,7 +18,7 @@ class Plugin:
     def initGui(self):
         self._saver.attachToProject()
         self._infoAction = QAction(
-            QIcon(":plugins/MemoryLayerSaver/plugin.png"),
+            QIcon(":plugins/memory_layer_saver/memory_layer_saver.svg"),
             "Display memory layer information",
             self._iface.mainWindow(),
         )

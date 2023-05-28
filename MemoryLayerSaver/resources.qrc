@@ -1,5 +1,5 @@
 <RCC>
-  <qresource prefix="plugins/MemoryLayerSaver/" >
-    <file>memory_layer_saver.png</file>
+  <qresource prefix="/plugins/memory_layer_saver/" >
+    <file>memory_layer_saver.svg</file>
   </qresource>
 </RCC>

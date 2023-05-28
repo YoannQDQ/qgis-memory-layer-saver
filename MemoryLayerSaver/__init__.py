@@ -17,8 +17,8 @@
 #       Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 #       MA 02110-1301, USA.
 
-from .Plugin import Plugin
+from .memory_layer_saver_plugin import MemoryLayerSaverPlugin
 
 
 def classFactory(iface):
-    return Plugin(iface)
+    return MemoryLayerSaverPlugin(iface)

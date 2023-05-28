@@ -1,5 +1,15 @@
-*.pyc
-Thumbs.db
-.svn
-*.swp
-.venv
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Environments
+.venv/
+
+# Visual Studio Code
+.vscode/
+
+# Packaged plugin
+*.zip
+
+# Compiled resources
+*_rc.py

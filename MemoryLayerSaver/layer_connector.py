@@ -5,16 +5,33 @@ from qgis.PyQt.QtCore import QObject
 class LayerConnector(QObject):
     """Generic class to connect to all layers in the project"""
 
-    def __init__(self):
+    def __init__(self, delay_connect=False):
         super().__init__()
+        self.attached = False
 
+        if not delay_connect:
+            self.attach()
+
+    def __del__(self):
+        # Disconnect the signal
+        self.detach()
+
+    def attach(self):
         # Whenever a layer is added to the project, connect to it
         QgsProject.instance().layerWasAdded.connect(self.connect_layer)
 
         # Connect to all layers already in the project
         self.connect_layers()
 
-    def __del__(self):
+        self.attached = True
+
+    def detach(self):
+        """Detach from the project"""
+
+        # If we are not attached, do nothing
+        if not self.attached:
+            return
+
         # Disconnect the signal
         QgsProject.instance().layerWasAdded.disconnect(self.connect_layer)
 

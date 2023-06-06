@@ -14,4 +14,4 @@ email=ccrook@linz.govt.nz, yoann.quenach@gmail.com
 homepage=http://github.com/YoannQDQ/qgis-memory-layer-saver
 tracker=http://github.com/YoannQDQ/qgis-memory-layer-saver/issues
 repository=http://github.com/YoannQDQ/qgis-memory-layer-saver
-icon=./memory_layer_saver.png
+icon=./icon.png

@@ -1,10 +1,11 @@
+import configparser
 import sys
 from pathlib import Path
 
 from qgis.core import Qgis, QgsApplication, QgsProject
 from qgis.PyQt.QtCore import QFile
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QMessageBox
+from qgis.PyQt.QtWidgets import QMessageBox, QStyle, QWidget
 from qgis.utils import iface
 
 from . import resources_rc  # noqa
@@ -26,14 +27,22 @@ class MemoryLayerSaver(LayerConnector):
         proj.cleared.connect(self.on_cleared)
 
     def initGui(self):  # noqa
-        self.info_action = QAction(
-            QIcon(":/plugins/memory_layer_saver/memory_layer_saver.svg"),
-            self.tr("Display memory layer information"),
-            iface.mainWindow(),
+        self.menu = iface.pluginMenu().addMenu(
+            QIcon(":/plugins/memory_layer_saver/icon.svg"), self.tr("Memory layer saver")
+        )
+        self.menu.setObjectName("memory_layer_saver_menu")
+
+        self.about_action = self.menu.addAction(
+            self.menu.style().standardIcon(QStyle.SP_MessageBoxInformation), self.tr("About")
+        )
+        self.about_action.setObjectName("memory_layer_saver_about")
+        self.about_action.triggered.connect(self.show_about)
+
+        self.info_action = self.menu.addAction(
+            QIcon(":/plugins/memory_layer_saver/icon.svg"), self.tr("Display memory layer information")
         )
         self.info_action.setObjectName("memory_layer_saver_info")
         self.info_action.triggered.connect(self.show_info)
-        iface.addPluginToMenu("Memory layer saver", self.info_action)
 
         # Disable the prompt to save memory layers on exit since we are saving them automatically
         Settings.set_ask_to_save_memory_layers(False)
@@ -44,7 +53,7 @@ class MemoryLayerSaver(LayerConnector):
         return QgsApplication.translate("MemoryLayerSaver", message, *args, **kwargs)
 
     def unload(self):
-        iface.removePluginMenu("Memory layer saver", self.info_action)
+        iface.pluginMenu().removeAction(self.menu.menuAction())
         self.detach()
         proj = QgsProject.instance()
         proj.readProject.disconnect(self.load_data)
@@ -142,12 +151,44 @@ class MemoryLayerSaver(LayerConnector):
     def show_info(self):
         layer_info = [(layer.name(), layer.featureCount()) for layer in self.memory_layers()]
         if layer_info:
-            message = self.tr("The following memory data provider layers will be saved with this project:")
+            message = self.tr("The following memory layers will be saved with this project:")
             message += "<br>"
             message += "<br>".join(
-                self.tr("- <b>{}</b> ({} features)", "Layer name and number of features", n=count).format(name, count)
+                self.tr("- <b>{0}</b> ({1} features)", "Layer name and number of features", n=count).format(name, count)
                 for name, count in layer_info
             )
         else:
-            message = self.tr("This project contains no memory data provider layers to be saved")
+            message = self.tr("This project contains no memory layers to be saved")
         QMessageBox.information(iface.mainWindow(), "Memory Layer Saver", message)
+
+    def show_about(self):
+        # Used to display plugin icon in the about message box
+        bogus = QWidget(iface.mainWindow())
+        bogus.setWindowIcon(QIcon(":/plugins/memory_layer_saver/icon.svg"))
+
+        # Get plugin metadata
+        cfg = configparser.ConfigParser()
+        cfg.read(Path(__file__).parent / "metadata.txt")
+
+        name = cfg.get("general", "name")
+        version = cfg.get("general", "version")
+        repository = cfg.get("general", "repository")
+        tracker = cfg.get("general", "tracker")
+        homepage = cfg.get("general", "homepage")
+        QMessageBox.about(
+            bogus,
+            self.tr("About {0}").format(name),
+            "<b>Version</b> {}<br><br>"
+            "<b>{}</b> : <a href={}>GitHub</a><br>"
+            "<b>{}</b> : <a href={}/issues>GitHub</a><br>"
+            "<b>{}</b> : <a href={}>GitHub</a>".format(
+                version,
+                self.tr("Source code"),
+                repository,
+                self.tr("Report issues"),
+                tracker,
+                self.tr("Documentation"),
+                homepage,
+            ),
+        )
+        bogus.deleteLater()

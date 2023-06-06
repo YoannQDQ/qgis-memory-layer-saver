@@ -109,15 +109,12 @@ class MemoryLayerSaver(LayerConnector):
 
         self.has_modified_layers = False
 
-    def embedded_data_template(self):
-        return Path(QgsProject.instance().fileName()).stem + ".mldata"
-
     def save_data(self):
         if not self.has_modified_layers:
             return
 
-        if Qgis.versionInt() >= 32200 and QgsProject.instance().isZipped():
-            QgsProject.instance().createAttachedFile(self.embedded_data_template())
+        if Qgis.versionInt() >= 32200:
+            QgsProject.instance().createAttachedFile("layers.mldata")
 
         filename = self.memory_layer_file()
         log("Saving memory layers to " + filename)
@@ -137,9 +134,9 @@ class MemoryLayerSaver(LayerConnector):
             return ""
 
         # Check if the mldata was embedded in the project file
-        if Qgis.versionInt() >= 32200 and QgsProject.instance().isZipped():
+        if Qgis.versionInt() >= 32200:
             for attachment in QgsProject.instance().attachedFiles():
-                if attachment.endswith(self.embedded_data_template()):
+                if attachment.endswith("layers.mldata"):
                     return attachment
 
         return name + ".mldata"

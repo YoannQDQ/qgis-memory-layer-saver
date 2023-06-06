@@ -1,0 +1,18 @@
+# Develoment dependencies
+# -----------------------
+
+black
+
+flake8-builtins
+flake8-isort
+flake8-qgis
+flake8-bugbear
+pep8-naming
+flake8-comprehensions
+flake8-pytest-style
+flake8-debugger
+
+isort>=5.8,<5.11
+pre-commit>=3,<4
+
+wheel

@@ -1,5 +1,7 @@
 from qgis.PyQt.QtCore import QDataStream, QFile, QIODevice
 
+from .toolbox import log
+
 
 class Writer:
     def __init__(self, filename):
@@ -29,16 +31,17 @@ class Writer:
         try:
             self._dstream.setDevice(None)
             self._file.close()
-        except:
+        except BaseException:
             pass
         self._dstream = None
         self._file = None
 
-    def writeLayers(self, layers):
+    def write_layers(self, layers):
         for layer in layers:
-            self.writeLayer(layer)
+            self.write_layer(layer)
 
-    def writeLayer(self, layer):
+    def write_layer(self, layer):
+        log("Writing layer " + layer.id())
         if not self._dstream:
             raise ValueError("Layer stream not open for reading")
         ds = self._dstream

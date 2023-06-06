@@ -38,6 +38,8 @@ class LayerConnector(QObject):
         # Disconnect from all layers
         self.disconnect_layers()
 
+        self.attached = False
+
     def connect_layers(self):
         """Connect to all the layers already in the project"""
         for layer in QgsProject.instance().mapLayers().values():

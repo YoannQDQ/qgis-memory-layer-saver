@@ -1,6 +1,8 @@
 from qgis.core import QgsFeature, QgsField, QgsGeometry
 from qgis.PyQt.QtCore import QDataStream, QFile, QIODevice
 
+from .toolbox import log
+
 
 class Reader:
     def __init__(self, filename):
@@ -14,7 +16,7 @@ class Reader:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.close
+        self.close()
 
     def open(self):
         self._file = QFile(self._filename)
@@ -28,14 +30,14 @@ class Reader:
                 raise ValueError(self._filename + " is not a valid memory layer data file")
         version = self._dstream.readInt32()
         if version not in (1, 2):
-            raise ValueError(self._filename + " is not compatible with this version of the Memory_layerSaver plugin")
+            raise ValueError(self._filename + " is not compatible with this version of the MemoryLayerSaver plugin")
         self._version = version
 
     def close(self):
         try:
             self._dstream.setDevice(None)
             self._file.close()
-        except:
+        except BaseException:
             pass
         self._dstream = None
         self._file = None
@@ -48,18 +50,19 @@ class Reader:
         while True:
             if ds.atEnd():
                 return
-            id = ds.readQString()
-            layer = None
-            for l in layers:
-                if l.id() == id:
-                    layer = l
+            layer_id = ds.readQString()
+            for layer in layers:
+                if layer.id() == layer_id:
                     break
+            else:
+                layer = None
             if layer is None:
                 self.skip_layer()
             else:
                 self.read_layer(layer)
 
     def read_layer(self, layer):
+        log("Reading layer " + layer.id())
         ds = self._dstream
         dp = layer.dataProvider()
         if dp.featureCount() > 0:
@@ -71,7 +74,7 @@ class Reader:
             ss = ds.readQString()
         nattr = ds.readInt16()
         attr = list(range(nattr))
-        for i in attr:
+        for _i in attr:
             name = ds.readQString()
             qtype = ds.readInt16()
             typename = ds.readQString()
@@ -90,12 +93,12 @@ class Reader:
                 if value is not None:
                     feat[i] = value
 
-            wkbSize = ds.readUInt32()
-            if wkbSize == 0:
+            wkb_size = ds.readUInt32()
+            if wkb_size == 0:
                 feat.setGeometry(nullgeom)
             else:
                 geom = QgsGeometry()
-                geom.fromWkb(ds.readRawData(wkbSize))
+                geom.fromWkb(ds.readRawData(wkb_size))
                 feat.setGeometry(geom)
             dp.addFeatures([feat])
         layer.setSubsetString(ss)
@@ -106,16 +109,16 @@ class Reader:
         ds = self._dstream
         nattr = ds.readInt16()
         attr = list(range(nattr))
-        for i in attr:
-            name = ds.readQString()
-            qtype = ds.readInt16()
-            typename = ds.readQString()
-            length = ds.readInt16()
-            precision = ds.readInt16()
-            comment = ds.readQString()
+        for _i in attr:
+            ds.readQString()  # name
+            ds.readInt16()  # type
+            ds.readQString()  # typename
+            ds.readInt16()  # length
+            ds.readInt16()  # precision
+            ds.readQString()  # comment
         while ds.readBool():
-            for i in attr:
+            for _i in attr:
                 ds.readQVariant()
-            wkbSize = ds.readUInt32()
-            if wkbSize > 0:
-                ds.readRawData(wkbSize)
+            wkb_size = ds.readUInt32()
+            if wkb_size > 0:
+                ds.readRawData(wkb_size)

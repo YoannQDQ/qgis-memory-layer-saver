@@ -18,8 +18,11 @@ class MemoryLayerSaver(LayerConnector):
     def __init__(self):
         super().__init__()
         proj = QgsProject.instance()
+        self.has_modified_layers = proj.isDirty()
+
         proj.readProject.connect(self.load_data)
         proj.writeProject.connect(self.save_data)
+        proj.cleared.connect(self.on_cleared)
 
     def initGui(self):  # noqa
         self.info_action = QAction(
@@ -49,6 +52,9 @@ class MemoryLayerSaver(LayerConnector):
         # Restore the original value of the setting
         Settings.set_ask_to_save_memory_layers(Settings.backup_ask_to_save_memory_layers())
         log("MemoryLayerSaver unloaded")
+
+    def on_cleared(self):
+        self.has_modified_layers = False
 
     def connect_layer(self, layer):
         if Settings.is_saved_layer(layer):
@@ -83,11 +89,15 @@ class MemoryLayerSaver(LayerConnector):
                     )
 
     def save_data(self):
+        if not self.has_modified_layers:
+            return
         filename = self.memory_layer_file()
         layers = list(self.memory_layers())
         if layers:
             with Writer(filename) as writer:
                 writer.write_layers(layers)
+
+        self.has_modified_layers = False
 
     def memory_layers(self):
         return [layer for layer in QgsProject.instance().mapLayers().values() if Settings.is_saved_layer(layer)]
@@ -100,6 +110,7 @@ class MemoryLayerSaver(LayerConnector):
         return lname
 
     def set_project_dirty(self):
+        self.has_modified_layers = True
         QgsProject.instance().setDirty(True)
 
     def show_info(self):

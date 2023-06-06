@@ -64,6 +64,10 @@ class MemoryLayerSaver(LayerConnector):
             layer.committedFeaturesAdded.connect(self.set_project_dirty)
             layer.committedAttributeValuesChanges.connect(self.set_project_dirty)
             layer.committedGeometriesChanges.connect(self.set_project_dirty)
+            # Connect layer will be called when a layer is added to the project
+            # So we set the has_modified_layers flag to ensure the mldata file will be
+            # updated when the project is saved
+            self.has_modified_layers = True
 
     def disconnect_layer(self, layer):
         if Settings.is_saved_layer(layer):
@@ -73,11 +77,16 @@ class MemoryLayerSaver(LayerConnector):
             layer.committedFeaturesAdded.disconnect(self.set_project_dirty)
             layer.committedAttributeValuesChanges.disconnect(self.set_project_dirty)
             layer.committedGeometriesChanges.disconnect(self.set_project_dirty)
+            # Disconnect layer will be called when a layer is removed from the project
+            # So we set the has_modified_layers flag to ensure the mldata file will be
+            # updated when the project is saved
+            self.has_modified_layers = True
 
     def load_data(self):
         filename = self.memory_layer_file()
         file = QFile(filename)
         if file.exists():
+            log("Loading memory layers from " + filename)
             layers = list(self.memory_layers())
             if layers:
                 try:
@@ -88,10 +97,13 @@ class MemoryLayerSaver(LayerConnector):
                         iface.mainWindow(), self.tr("Error reloading memory layers"), str(sys.exc_info()[1])
                     )
 
+        self.has_modified_layers = False
+
     def save_data(self):
         if not self.has_modified_layers:
             return
         filename = self.memory_layer_file()
+        log("Saving memory layers to " + filename)
         layers = list(self.memory_layers())
         if layers:
             with Writer(filename) as writer:

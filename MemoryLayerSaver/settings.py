@@ -1,4 +1,4 @@
-from qgis.core import QgsMapLayer, QgsSettings
+from qgis.core import Qgis, QgsMapLayer, QgsSettings
 
 # Used by QGIS to prompt user to save memory layers on exit.
 ASK_TO_SAVE_MEMORY_LAYER_KEY = "askToSaveMemoryLayers"
@@ -6,6 +6,10 @@ ASK_TO_SAVE_MEMORY_LAYER_KEY = "askToSaveMemoryLayers"
 BACKUP_KEY = "MemoryLayerSaver/memoryLayerSaveSetting"
 # Can be used to disable saving on a per-layer basis.
 SAVE_LAYER_KEY = "SaveMemoryProvider"
+# Wheter the mldata is embedded in the attachment.zip(qgs)/the project file (qgz)
+# or stored in a separate .mldata file (legacy). This can be changed from
+# the settings dialog, to export a project that can be opened in older QGIS versions (< 3.22).
+MLDATA_EMBEDDED = "MemoryLayerSaver/mldataEmbedded"
 
 
 class Settings:
@@ -31,6 +35,19 @@ class Settings:
     @classmethod
     def set_backup_ask_to_save_memory_layers(cls, value):
         cls.get_settings().setValue(BACKUP_KEY, value)
+
+    @classmethod
+    def mldata_embedded(cls):
+        return cls.get_settings().value(MLDATA_EMBEDDED, True, bool)
+
+    @classmethod
+    def set_mldata_embedded(cls, value):
+        cls.get_settings().setValue(MLDATA_EMBEDDED, value)
+
+    @classmethod
+    def legacy_mode(cls):
+        """Whether to use the legacy .mldata file format"""
+        return Qgis.versionInt() < 32200 or not cls.mldata_embedded()
 
     @staticmethod
     def is_saved_layer(layer):

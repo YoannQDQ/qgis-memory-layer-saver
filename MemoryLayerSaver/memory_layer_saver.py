@@ -2,7 +2,7 @@ import configparser
 import sys
 from pathlib import Path
 
-from qgis.core import Qgis, QgsApplication, QgsProject
+from qgis.core import QgsApplication, QgsProject
 from qgis.PyQt.QtCore import QFile
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QMessageBox, QStyle, QWidget
@@ -12,6 +12,7 @@ from . import resources_rc  # noqa
 from .layer_connector import LayerConnector
 from .reader import Reader
 from .settings import Settings
+from .settings_dialog import SettingsDialog
 from .toolbox import log
 from .writer import Writer
 
@@ -44,6 +45,12 @@ class MemoryLayerSaver(LayerConnector):
         self.info_action.setObjectName("memory_layer_saver_info")
         self.info_action.triggered.connect(self.show_info)
 
+        self.settings_action = self.menu.addAction(
+            QgsApplication.getThemeIcon("mActionOptions.svg"), self.tr("Settings")
+        )
+        self.settings_action.setObjectName("memory_layer_saver_settings")
+        self.settings_action.triggered.connect(self.show_settings)
+
         # Disable the prompt to save memory layers on exit since we are saving them automatically
         Settings.set_ask_to_save_memory_layers(False)
         log("MemoryLayerSaver loaded")
@@ -64,6 +71,7 @@ class MemoryLayerSaver(LayerConnector):
         log("MemoryLayerSaver unloaded")
 
     def on_cleared(self):
+        """Called when the project is cleared (new project)"""
         self.has_modified_layers = False
 
     def connect_layer(self, layer):
@@ -93,14 +101,15 @@ class MemoryLayerSaver(LayerConnector):
             self.has_modified_layers = True
 
     def load_data(self):
-        filename = self.memory_layer_file()
-        file = QFile(filename)
+        """Load the memory layers from the .mldata file"""
+        filepath = self.memory_layer_file()
+        file = QFile(filepath)
         if file.exists():
-            log("Loading memory layers from " + filename)
+            log("Loading memory layers from " + filepath)
             layers = list(self.memory_layers())
             if layers:
                 try:
-                    with Reader(filename) as reader:
+                    with Reader(filepath) as reader:
                         reader.read_layers(layers)
                 except BaseException:
                     QMessageBox.information(
@@ -110,42 +119,61 @@ class MemoryLayerSaver(LayerConnector):
         self.has_modified_layers = False
 
     def save_data(self):
-        if not self.has_modified_layers:
+        """Write the layers to the .mldata file"""
+
+        # Check if the mldata file exists and if any memory layer has been modified
+        filepath = self.memory_layer_file(fallback_to_legacy=False)
+        if filepath and Path(filepath).exists() and not self.has_modified_layers:
             return
 
-        if Qgis.versionInt() >= 32200:
+        # If mldata file do not exist in the attached files, create it
+        if not Settings.legacy_mode() and not filepath:
             QgsProject.instance().createAttachedFile("layers.mldata")
 
-        filename = self.memory_layer_file()
-        log("Saving memory layers to " + filename)
+        filepath = self.memory_layer_file()
+        log("Saving memory layers to " + filepath)
         layers = list(self.memory_layers())
         if layers:
-            with Writer(filename) as writer:
+            with Writer(filepath) as writer:
                 writer.write_layers(layers)
 
         self.has_modified_layers = False
 
     def memory_layers(self):
+        """Return a list of all memory layers in the project"""
         return [layer for layer in QgsProject.instance().mapLayers().values() if Settings.is_saved_layer(layer)]
 
-    def memory_layer_file(self):
+    def legacy_memory_layer_file(self):
+        """Returns the path to the legacy .mldata file"""
+        return QgsProject.instance().fileName() + ".mldata"
+
+    def memory_layer_file(self, fallback_to_legacy=True):
+        """Returns the path to the .mldata file"""
         name = QgsProject.instance().fileName()
         if not name:
             return ""
 
-        # Check if the mldata was embedded in the project file
-        if Qgis.versionInt() >= 32200:
-            for attachment in QgsProject.instance().attachedFiles():
-                if attachment.endswith("layers.mldata"):
-                    return attachment
+        # Legacy mode (old QGIS versions or mldata stored in a separate file)
+        if Settings.legacy_mode():
+            return self.legacy_memory_layer_file()
 
-        return name + ".mldata"
+        # Find the layers.mldata file in the attached files
+        # Note attached files are prefixed with a random string hence the use of endswith
+        for attachment in QgsProject.instance().attachedFiles():
+            if attachment.endswith("layers.mldata"):
+                return attachment
+
+        # The layers.mldata was not found in the attached files
+        if fallback_to_legacy:
+            return self.legacy_memory_layer_file()
 
     def set_project_dirty(self):
+        """Set project as dirty when a memory layer is modified"""
         self.has_modified_layers = True
         QgsProject.instance().setDirty(True)
 
     def show_info(self):
+        """Display some information about the memory layers"""
         layer_info = [(layer.name(), layer.featureCount()) for layer in self.memory_layers()]
         if layer_info:
             message = self.tr("The following memory layers will be saved with this project:")
@@ -159,6 +187,7 @@ class MemoryLayerSaver(LayerConnector):
         QMessageBox.information(iface.mainWindow(), "Memory Layer Saver", message)
 
     def show_about(self):
+        """Display the about message box"""
         # Used to display plugin icon in the about message box
         bogus = QWidget(iface.mainWindow())
         bogus.setWindowIcon(QIcon(":/plugins/memory_layer_saver/icon.svg"))
@@ -189,3 +218,7 @@ class MemoryLayerSaver(LayerConnector):
             ),
         )
         bogus.deleteLater()
+
+    def show_settings(self):
+        """Show the settings dialog"""
+        SettingsDialog().exec()

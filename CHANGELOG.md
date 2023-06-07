@@ -2,7 +2,7 @@
 
 ## [5.0.0] - 2023-06-07
 - Do not rewrite the memory layers if they have not changed
-- Fixes issue #9 - Embbed the mldata file in the project (requires QGIS >= 2.22)
+- Fixes issue #9 - Embbed the mldata file in the project (requires QGIS >= 3.22)
 - Add about dialog
 
 ## [4.0.4] - 2018-10-22

@@ -47,7 +47,7 @@ class Settings:
     @classmethod
     def legacy_mode(cls):
         """Whether to use the legacy .mldata file format"""
-        return Qgis.versionInt() < 32200 or not cls.mldata_embedded()
+        return Qgis.QGIS_VERSION_INT < 32200 or not cls.mldata_embedded()
 
     @staticmethod
     def is_saved_layer(layer):

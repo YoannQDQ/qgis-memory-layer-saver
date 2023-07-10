@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## [5.0.1] - 2023-07-10
+- Fixes issue #12 - Qgis.versionInt() unavailable for QGIS < 3.12
+
 ## [5.0.0] - 2023-06-07
 - Do not rewrite the memory layers if they have not changed
 - Fixes issue #9 - Embbed the mldata file in the project (requires QGIS >= 3.22)

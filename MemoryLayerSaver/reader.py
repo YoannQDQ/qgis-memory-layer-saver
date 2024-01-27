@@ -55,6 +55,7 @@ class Reader:
                 if layer.id() == layer_id:
                     break
             else:
+                log(f"Unknown layer {layer_id} in project. Skipping.")
                 layer = None
             if layer is None:
                 self.skip_layer()
@@ -107,6 +108,8 @@ class Reader:
 
     def skip_layer(self):
         ds = self._dstream
+        if self._version > 1:
+            ds.readQString()  # subset string
         nattr = ds.readInt16()
         attr = list(range(nattr))
         for _i in attr:

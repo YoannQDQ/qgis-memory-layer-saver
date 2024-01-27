@@ -82,31 +82,35 @@ class MemoryLayerSaver(LayerConnector):
             layer.committedFeaturesAdded.connect(self.set_project_dirty)
             layer.committedAttributeValuesChanges.connect(self.set_project_dirty)
             layer.committedGeometriesChanges.connect(self.set_project_dirty)
+            layer.dataSourceChanged.connect(self.on_data_source_changed)
             # Connect layer will be called when a layer is added to the project
             # So we set the has_modified_layers flag to ensure the mldata file will be
             # updated when the project is saved
             self.has_modified_layers = True
 
     def disconnect_layer(self, layer):
-        if Settings.is_saved_layer(layer):
+        try:
             layer.committedAttributesDeleted.disconnect(self.set_project_dirty)
             layer.committedAttributesAdded.disconnect(self.set_project_dirty)
             layer.committedFeaturesRemoved.disconnect(self.set_project_dirty)
             layer.committedFeaturesAdded.disconnect(self.set_project_dirty)
             layer.committedAttributeValuesChanges.disconnect(self.set_project_dirty)
             layer.committedGeometriesChanges.disconnect(self.set_project_dirty)
+            layer.dataSourceChanged.disconnect(self.on_data_source_changed)
             # Disconnect layer will be called when a layer is removed from the project
             # So we set the has_modified_layers flag to ensure the mldata file will be
             # updated when the project is saved
             self.has_modified_layers = True
+        except (AttributeError, TypeError):  # layer was not previously connected
+            pass
 
     def load_data(self):
         """Load the memory layers from the .mldata file"""
         filepath = self.memory_layer_file()
         file = QFile(filepath)
         if file.exists():
-            log("Loading memory layers from " + filepath)
             layers = list(self.memory_layers())
+            log(f"Loading memory layers from {filepath} ({len(layers)} layers)")
             if layers:
                 try:
                     with Reader(filepath) as reader:
@@ -131,8 +135,8 @@ class MemoryLayerSaver(LayerConnector):
             QgsProject.instance().createAttachedFile("layers.mldata")
 
         filepath = self.memory_layer_file()
-        log("Saving memory layers to " + filepath)
         layers = list(self.memory_layers())
+        log(f"Saving memory layers to {filepath} ({len(layers)} layers)")
         if layers:
             with Writer(filepath) as writer:
                 writer.write_layers(layers)
@@ -171,6 +175,13 @@ class MemoryLayerSaver(LayerConnector):
         """Set project as dirty when a memory layer is modified"""
         self.has_modified_layers = True
         QgsProject.instance().setDirty(True)
+
+    def on_data_source_changed(self):
+        # If a temporary layer is made permanent, its data source will change
+        # At this point, the layer is no longer a memory layer, so we disconnect from it
+        layer = self.sender()
+        if not Settings.is_saved_layer(layer):
+            self.disconnect_layer(layer)
 
     def show_info(self):
         """Display some information about the memory layers"""

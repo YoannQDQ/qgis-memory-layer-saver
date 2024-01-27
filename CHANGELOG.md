@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## [5.0.2] - 2023-07-10
+- Fixes issue #16 - Corrupted mldata when making layer permanent
+
 ## [5.0.1] - 2023-07-10
 - Fixes issue #12 - Qgis.versionInt() unavailable for QGIS < 3.12
 

@@ -20,10 +20,10 @@ class Reader:
 
     def open(self):
         self._file = QFile(self._filename)
-        if not self._file.open(QIODevice.ReadOnly):
+        if not self._file.open(QIODevice.OpenModeFlag.ReadOnly):
             raise ValueError("Cannot open " + self._filename)
         self._dstream = QDataStream(self._file)
-        self._dstream.setVersion(QDataStream.Qt_4_5)
+        self._dstream.setVersion(QDataStream.Version.Qt_4_5)
         for c in b"QGis.MemoryLayerData":
             ct = self._dstream.readUInt8()
             if ct != c:

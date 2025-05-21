@@ -33,7 +33,7 @@ class MemoryLayerSaver(LayerConnector):
         self.menu.setObjectName("memory_layer_saver_menu")
 
         self.about_action = self.menu.addAction(
-            self.menu.style().standardIcon(QStyle.SP_MessageBoxInformation), self.tr("About")
+            self.menu.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxInformation), self.tr("About")
         )
         self.about_action.setObjectName("memory_layer_saver_about")
         self.about_action.triggered.connect(self.show_about)

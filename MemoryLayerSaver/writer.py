@@ -18,10 +18,10 @@ class Writer:
 
     def open(self):
         self._file = QFile(self._filename)
-        if not self._file.open(QIODevice.WriteOnly):
+        if not self._file.open(QIODevice.OpenModeFlag.WriteOnly):
             raise ValueError("Cannot open " + self._filename)
         self._dstream = QDataStream(self._file)
-        self._dstream.setVersion(QDataStream.Qt_4_5)
+        self._dstream.setVersion(QDataStream.Version.Qt_4_5)
         for c in b"QGis.MemoryLayerData":
             self._dstream.writeUInt8(c)
         # Version of MLD format

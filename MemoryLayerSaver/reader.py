@@ -1,5 +1,5 @@
 from qgis.core import QgsFeature, QgsField, QgsGeometry
-from qgis.PyQt.QtCore import QDataStream, QFile, QIODevice
+from qgis.PyQt.QtCore import QDataStream, QFile, QIODevice, QMetaType
 
 from .toolbox import log
 
@@ -82,7 +82,15 @@ class Reader:
             length = ds.readInt16()
             precision = ds.readInt16()
             comment = ds.readQString()
-            fld = QgsField(name, qtype, typename, length, precision, comment)
+
+            try:
+                field_type = QMetaType.Type(qtype)
+            except (TypeError, ValueError):
+                # Fallback en cas d'échec
+                field_type = QMetaType.Type.UnknownType
+                log(f"Unable to convert type {qtype} for field {name}, using UnknownType")
+
+            fld = QgsField(name, field_type, typename, int(length), int(precision), comment)
             dp.addAttributes([fld])
 
         nullgeom = QgsGeometry()

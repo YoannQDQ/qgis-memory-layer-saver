@@ -1,4 +1,4 @@
-from qgis.PyQt.QtCore import QDataStream, QFile, QIODevice
+from qgis.PyQt.QtCore import QDataStream, QFile, QIODevice, QMetaType
 
 from .toolbox import log
 
@@ -14,7 +14,8 @@ class Writer:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.close
+        # Correction: appel de la méthode close() au lieu de référencer l'attribut close
+        self.close()
 
     def open(self):
         self._file = QFile(self._filename)
@@ -56,10 +57,15 @@ class Writer:
         for fld in flds:
             fldnames.append(fld.name())
             ds.writeQString(fld.name())
-            ds.writeInt16(int(fld.type()))
+            field_type = fld.type()
+            if isinstance(field_type, QMetaType.Type):
+                field_type_value = int(field_type)
+            else:
+                field_type_value = int(field_type)
+            ds.writeInt16(field_type_value)
             ds.writeQString(fld.typeName())
-            ds.writeInt16(fld.length())
-            ds.writeInt16(fld.precision())
+            ds.writeInt16(int(fld.length()))
+            ds.writeInt16(int(fld.precision()))
             ds.writeQString(fld.comment())
 
         layer.setSubsetString("")

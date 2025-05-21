@@ -8,13 +8,14 @@ from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QMessageBox, QStyle, QWidget
 from qgis.utils import iface
 
-from . import resources_rc  # noqa
-from .layer_connector import LayerConnector
-from .reader import Reader
-from .settings import Settings
-from .settings_dialog import SettingsDialog
-from .toolbox import log
-from .writer import Writer
+from MemoryLayerSaver.layer_connector import LayerConnector
+from MemoryLayerSaver.reader import Reader
+from MemoryLayerSaver.settings import Settings
+from MemoryLayerSaver.settings_dialog import SettingsDialog
+from MemoryLayerSaver.toolbox import log
+from MemoryLayerSaver.writer import Writer
+
+DIR_PLUGIN_ROOT: Path = Path(__file__).parent
 
 
 class MemoryLayerSaver(LayerConnector):
@@ -28,9 +29,7 @@ class MemoryLayerSaver(LayerConnector):
         proj.cleared.connect(self.on_cleared)
 
     def initGui(self):  # noqa
-        self.menu = iface.pluginMenu().addMenu(
-            QIcon(":/plugins/memory_layer_saver/icon.svg"), self.tr("Memory layer saver")
-        )
+        self.menu = iface.pluginMenu().addMenu(QIcon(str(DIR_PLUGIN_ROOT / "icon.svg")), self.tr("Memory layer saver"))
         self.menu.setObjectName("memory_layer_saver_menu")
 
         self.about_action = self.menu.addAction(
@@ -40,7 +39,7 @@ class MemoryLayerSaver(LayerConnector):
         self.about_action.triggered.connect(self.show_about)
 
         self.info_action = self.menu.addAction(
-            QIcon(":/plugins/memory_layer_saver/icon.svg"), self.tr("Display memory layer information")
+            QIcon(str(DIR_PLUGIN_ROOT / "icon.svg")), self.tr("Display memory layer information")
         )
         self.info_action.setObjectName("memory_layer_saver_info")
         self.info_action.triggered.connect(self.show_info)
@@ -201,11 +200,11 @@ class MemoryLayerSaver(LayerConnector):
         """Display the about message box"""
         # Used to display plugin icon in the about message box
         bogus = QWidget(iface.mainWindow())
-        bogus.setWindowIcon(QIcon(":/plugins/memory_layer_saver/icon.svg"))
+        bogus.setWindowIcon(QIcon(str(DIR_PLUGIN_ROOT / "icon.svg")))
 
         # Get plugin metadata
         cfg = configparser.ConfigParser()
-        cfg.read(Path(__file__).parent / "metadata.txt")
+        cfg.read(DIR_PLUGIN_ROOT / "metadata.txt")
 
         name = cfg.get("general", "name")
         version = cfg.get("general", "version")

@@ -6,7 +6,7 @@ about=Makes memory layers persistent so that they are restored when a project is
  in the project attachments (inside the qgz archive, or in attachments.zip for unzipped projects).
 category=Vector
 hasProcessingProvider=no
-icon=./icon.png
+icon=icon.svg
 tags=memory,scratch,persistent
 
 # credits and contact
@@ -19,7 +19,8 @@ repository=http://github.com/YoannQDQ/qgis-memory-layer-saver
 # experimental flag
 deprecated=False
 experimental=False
-qgisMinimumVersion=3.0
+supportsQt6=True
+qgisMinimumVersion=3.40
 qgisMaximumVersion=3.99
 
 # versioning

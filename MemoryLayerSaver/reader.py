@@ -1,5 +1,5 @@
 from qgis.core import QgsFeature, QgsField, QgsGeometry
-from qgis.PyQt.QtCore import QDataStream, QFile, QIODevice
+from qgis.PyQt.QtCore import QDataStream, QFile, QIODevice, QMetaType
 
 from .toolbox import log
 
@@ -20,10 +20,10 @@ class Reader:
 
     def open(self):
         self._file = QFile(self._filename)
-        if not self._file.open(QIODevice.ReadOnly):
+        if not self._file.open(QIODevice.OpenModeFlag.ReadOnly):
             raise ValueError("Cannot open " + self._filename)
         self._dstream = QDataStream(self._file)
-        self._dstream.setVersion(QDataStream.Qt_4_5)
+        self._dstream.setVersion(QDataStream.Version.Qt_4_5)
         for c in b"QGis.MemoryLayerData":
             ct = self._dstream.readUInt8()
             if ct != c:
@@ -82,7 +82,15 @@ class Reader:
             length = ds.readInt16()
             precision = ds.readInt16()
             comment = ds.readQString()
-            fld = QgsField(name, qtype, typename, length, precision, comment)
+
+            try:
+                field_type = QMetaType.Type(qtype)
+            except (TypeError, ValueError):
+                # Fallback en cas d'échec
+                field_type = QMetaType.Type.UnknownType
+                log(f"Unable to convert type {qtype} for field {name}, using UnknownType")
+
+            fld = QgsField(name, field_type, typename, int(length), int(precision), comment)
             dp.addAttributes([fld])
 
         nullgeom = QgsGeometry()

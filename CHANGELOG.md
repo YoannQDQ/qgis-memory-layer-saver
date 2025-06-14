@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## [6.0.0] - 2023-07-10
+- Qt6 Compatibility
+
 ## [5.0.2] - 2023-07-10
 - Fixes issue #16 - Corrupted mldata when making layer permanent
 

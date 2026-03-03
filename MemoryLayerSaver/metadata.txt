@@ -21,7 +21,7 @@ deprecated=False
 experimental=False
 supportsQt6=True
 qgisMinimumVersion=3.40
-qgisMaximumVersion=3.99
+qgisMaximumVersion=4.99
 
 # versioning
 version=6.0.0

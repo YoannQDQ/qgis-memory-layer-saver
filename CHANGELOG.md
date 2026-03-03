@@ -1,9 +1,12 @@
 # CHANGELOG
 
-## [6.0.0] - 2023-07-10
+## [6.0.1] - 2026-03-03
+- QGIS4 Compatibility
+
+## [6.0.0] - 2025-06-14
 - Qt6 Compatibility
 
-## [5.0.2] - 2023-07-10
+## [5.0.2] - 2024-01-27
 - Fixes issue #16 - Corrupted mldata when making layer permanent
 
 ## [5.0.1] - 2023-07-10

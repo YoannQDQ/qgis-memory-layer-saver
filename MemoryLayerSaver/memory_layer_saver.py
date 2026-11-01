@@ -60,10 +60,12 @@ class MemoryLayerSaver(LayerConnector):
 
     def unload(self):
         iface.pluginMenu().removeAction(self.menu.menuAction())
+        self.menu.deleteLater()
         self.detach()
         proj = QgsProject.instance()
         proj.readProject.disconnect(self.load_data)
         proj.writeProject.disconnect(self.save_data)
+        proj.cleared.disconnect(self.on_cleared)
 
         # Restore the original value of the setting
         Settings.set_ask_to_save_memory_layers(Settings.backup_ask_to_save_memory_layers())
@@ -216,7 +218,7 @@ class MemoryLayerSaver(LayerConnector):
             self.tr("About {0}").format(name),
             "<b>Version</b> {}<br><br>"
             "<b>{}</b> : <a href={}>GitHub</a><br>"
-            "<b>{}</b> : <a href={}/issues>GitHub</a><br>"
+            "<b>{}</b> : <a href={}>GitHub</a><br>"
             "<b>{}</b> : <a href={}>GitHub</a>".format(
                 version,
                 self.tr("Source code"),
@@ -231,4 +233,4 @@ class MemoryLayerSaver(LayerConnector):
 
     def show_settings(self):
         """Show the settings dialog"""
-        SettingsDialog().exec()
+        SettingsDialog(iface.mainWindow()).exec()

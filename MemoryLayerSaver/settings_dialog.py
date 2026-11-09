@@ -9,7 +9,7 @@ class SettingsDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        self.checkbox = QCheckBox(self.tr("Embbed mldata file"), self)
+        self.checkbox = QCheckBox(self.tr("Embed mldata file"), self)
         self.checkbox.setChecked(Settings.mldata_embedded())
         self.checkbox.setToolTip(
             self.tr(

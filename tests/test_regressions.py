@@ -728,6 +728,165 @@ def v1_file_is_still_readable():
     assert [x["n"] for x in a.getFeatures()] == [11, 22]
 
 
+def write_user_type(ds, name):
+    """What Qt writes for a value of a type it has no stream operator for: its type, without content"""
+    ds.writeUInt32(127)
+    ds.writeInt8(0)
+    ds.writeBytes(name + b"\0")
+
+
+def write_v2(f, layers):
+    """A v2 file, with the layers given as (layer, rows): a row is the value of an integer field 'a'
+    and a function writing the value of a string field 's'"""
+    qfile = QFile(f)
+    qfile.open(QIODevice.OpenModeFlag.WriteOnly)
+    ds = QDataStream(qfile)
+    ds.setVersion(QDataStream.Version.Qt_4_5)
+    ds.writeRawData(b"QGis.MemoryLayerData")
+    ds.writeUInt32(2)
+    wkb = QgsGeometry.fromWkt("POINT(3 4)").asWkb()
+    for lyr, rows in layers:
+        ds.writeQString(lyr.id())
+        ds.writeQString("")
+        ds.writeInt16(2)
+        for name, qtype, typename in (("a", QMetaType.Type.Int, "integer"), ("s", QMetaType.Type.QString, "string")):
+            ds.writeQString(name)
+            ds.writeInt16(int(qtype))
+            ds.writeQString(typename)
+            ds.writeInt16(0)
+            ds.writeInt16(0)
+            ds.writeQString("")
+        for a, write_s in rows:
+            ds.writeBool(True)
+            ds.writeQVariant(a)
+            write_s(ds)
+            ds.writeUInt32(len(wkb))
+            ds.writeRawData(wkb)
+        ds.writeBool(False)
+    qfile.close()
+
+
+def text(value):
+    return lambda ds: ds.writeQVariant(value)
+
+
+def unset(ds):
+    write_user_type(ds, b"QgsUnsetAttributeValue")
+
+
+def interval(ds):
+    write_user_type(ds, b"QgsInterval")
+
+
+def list_with_unset(ds):
+    ds.writeUInt32(9)
+    ds.writeInt8(0)
+    ds.writeUInt32(2)
+    ds.writeQVariant("in list")
+    unset(ds)
+
+
+@test
+def values_qt_could_not_store_are_read_as_null():
+    """Qt writes values it has no stream operator for as their type only: reading stopped there,
+    and every layer after it in the file stayed empty"""
+    Settings.set_mldata_embedded(False)
+    path = new_project("t", "qgs")
+    a, b = layer("A", 0), layer("B", 0)
+    proj.write(path)
+    rows_a = [(1, text("x")), (2, unset), (3, text("z")), (4, interval)]
+    write_v2(path + ".mldata", [(a, rows_a), (b, [(6, text("w"))])])
+    reopen(path)
+    assert not plugin.load_failed, dialogs
+    got = {f["a"]: f["s"] for f in get("A").getFeatures()}
+    assert got[1] == "x" and got[3] == "z", got
+    assert not got[2] and not got[4], got
+    assert [(f["a"], f["s"]) for f in get("B").getFeatures()] == [(6, "w")]
+
+
+@test
+def values_inside_lists_are_read_as_null():
+    new_project("t")
+    a, b = layer("A", 0), layer("B", 0)
+    f = str(WORK / "list.mldata")
+    write_v2(f, [(a, [(1, list_with_unset), (2, text("after"))]), (b, [(3, text("w"))])])
+    values = []
+    with Reader(f) as r:
+        r._dstream.readQString()
+        r._dstream.readQString()
+        r._dstream.readInt16()
+        for _i in range(2):
+            for read in (r._dstream.readQString, r._dstream.readInt16, r._dstream.readQString):
+                read()
+            for read in (r._dstream.readInt16, r._dstream.readInt16, r._dstream.readQString):
+                read()
+        while r._dstream.readBool():
+            values.append([r.read_value(), r.read_value()])
+            r.read_wkb()
+    assert values == [[1, ["in list", None]], [2, "after"]], values
+
+
+@test
+def unknown_unreadable_type_is_reported_and_protected():
+    Settings.set_mldata_embedded(False)
+    path = new_project("t", "qgs")
+    a, b = layer("A", 0), layer("B", 0)
+    proj.write(path)
+    write_v2(
+        path + ".mldata", [(a, [(1, text("x")), (2, lambda ds: write_user_type(ds, b"QgsSomethingElse"))]), (b, [])]
+    )
+    before = Path(path + ".mldata").read_bytes()
+    reopen(path)
+    assert plugin.load_failed
+    assert any("QgsSomethingElse" in t for _k, t in dialogs), dialogs
+    proj.write(path)
+    assert Path(path + ".mldata").read_bytes() == before
+
+
+@test
+def unset_values_are_saved_as_null():
+    from qgis.core import QgsUnsetAttributeValue
+
+    path = new_project("t")
+    a = layer("A", 0)
+    f = QgsFeature(a.fields())
+    f.setAttributes([5, QgsUnsetAttributeValue("'x'")])
+    if not a.dataProvider().addFeatures([f])[0]:
+        # QGIS 3.40 refuses them, so they cannot be in a layer there
+        assert Qgis.QGIS_VERSION_INT < 34400
+        return
+    layer("B", 3)
+    proj.write(path)
+    reopen(path)
+    assert not plugin.load_failed, dialogs
+    assert counts() == {"A": 1, "B": 3}, counts()
+    got = next(get("A").getFeatures())
+    assert got["a"] == 5 and not isinstance(got["s"], QgsUnsetAttributeValue) and not got["s"], got.attributes()
+
+
+@test
+def values_qt_cannot_store_are_never_written():
+    from qgis.core import QgsInterval, QgsUnsetAttributeValue
+
+    new_project("t")
+    a = layer("A", 0)
+    field = a.fields()[1]
+    w = Writer(str(WORK / "unstreamable.mldata"))
+    w.open()
+    try:
+        assert w.streamable(QgsUnsetAttributeValue(), a, field) is None
+        assert w.streamable([1, QgsUnsetAttributeValue()], a, field) == [1, None]
+        assert w.streamable({"k": QgsUnsetAttributeValue()}, a, field) == {"k": None}
+        for value in (QgsInterval(60), [QgsInterval(60)]):
+            try:
+                w.streamable(value, a, field)
+                raise AssertionError("should have raised")
+            except OSError as e:
+                assert "QgsInterval" in str(e) and "Layer A, field s" in str(e), e
+    finally:
+        w.close()
+
+
 def reset():
     proj.clear()
     dialogs.clear()

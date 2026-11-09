@@ -13,6 +13,24 @@ NATIVE_SUBTYPES = {
 }
 
 
+# Qt writes the values it has no stream operator for without any error, as their type id and type
+# name only: nothing can read them back. These were checked to have none in QGIS 3.40 to 4.2, so their
+# values are read as NULL. QgsUnsetAttributeValue (a default value not resolved yet) ends up in the
+# attributes of some features. Geometries are not in the list: they have an operator in Qt 6 builds.
+EMPTY_USER_TYPES = (
+    b"QgsUnsetAttributeValue",
+    b"QgsInterval",
+    b"QgsCoordinateReferenceSystem",
+    b"QgsPointXY",
+)
+# The type ids which announce a user type, followed by its name: Qt 4 streams, then Qt 5 streams
+STREAM_USER_TYPE_IDS = (127, 1024)
+# Containers, whose items are read one by one when one of them cannot be read
+STREAM_TYPE_MAP = 8
+STREAM_TYPE_LIST = 9
+STREAM_TYPE_HASH = 28
+
+
 class Reader:
     def __init__(self, filename):
         self._filename = filename
@@ -125,7 +143,7 @@ class Reader:
             while ds.readBool():
                 feat = QgsFeature(fields)
                 for i in attr:
-                    value = ds.readQVariant()
+                    value = self.read_value()
                     if value is not None:
                         feat[i] = value
 
@@ -143,6 +161,49 @@ class Reader:
             layer.setSubsetString(ss)
             layer.updateFields()
             layer.updateExtents()
+
+    def read_value(self):
+        ds = self._dstream
+        position = self._file.pos()
+        value = ds.readQVariant()
+        if ds.status() != QDataStream.Status.Ok:
+            # The slow way, for the values Qt cannot read
+            self._file.seek(position)
+            ds.resetStatus()
+            value = self.read_value_slowly()
+        return value
+
+    def read_value_slowly(self):
+        """Values of some user types were written without any content (see EMPTY_USER_TYPES): Qt
+        reads their type and refuses them, they are read as NULL here, also inside lists and maps.
+        Anything else Qt cannot read is an error."""
+        ds = self._dstream
+        position = self._file.pos()
+        type_id = ds.readUInt32()
+        ds.readInt8()  # is null
+        self.check_status()
+        if type_id in STREAM_USER_TYPE_IDS:
+            name = bytes(ds.readBytes() or b"").rstrip(b"\0")
+            self.check_status()
+            if name in EMPTY_USER_TYPES:
+                return None
+            raise ValueError(f"{self._filename}: values of type {name.decode(errors='replace')} cannot be read")
+        if type_id in (STREAM_TYPE_LIST, STREAM_TYPE_MAP, STREAM_TYPE_HASH):
+            count = ds.readUInt32()
+            self.check_status()
+            if count > self._file.size():
+                raise ValueError(self._filename + " is truncated or corrupt")
+            if type_id == STREAM_TYPE_LIST:
+                return [self.read_value_slowly() for _i in range(count)]
+            result = {}
+            for _i in range(count):
+                key = ds.readQString()
+                result[key] = self.read_value_slowly()
+            return result
+        self._file.seek(position)
+        value = ds.readQVariant()
+        self.check_status()
+        return value
 
     def read_wkb(self):
         ds = self._dstream
@@ -168,6 +229,6 @@ class Reader:
             self.check_status()
         while ds.readBool():
             for _i in attr:
-                ds.readQVariant()
+                self.read_value()
             self.read_wkb()
             self.check_status()

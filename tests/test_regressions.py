@@ -827,6 +827,28 @@ def values_inside_lists_are_read_as_null():
 
 
 @test
+def refused_features_are_loaded_with_null_values():
+    """The memory provider refuses a text in an integer field: the feature was silently lost"""
+    Settings.set_mldata_embedded(False)
+    path = new_project("t", "qgs")
+    a, b = layer("A", 0), layer("B", 0)
+    proj.write(path)
+    rows_a = [(1, text("x")), ("not a number", text("y")), (3, text("z"))]
+    write_v2(path + ".mldata", [(a, rows_a), (b, [(4, text("w"))])])
+    before = Path(path + ".mldata").read_bytes()
+    reopen(path)
+    got = sorted((f["s"], f["a"] if f["a"] else None) for f in get("A").getFeatures())
+    assert got == [("x", 1), ("y", None), ("z", 3)], got
+    assert counts()["B"] == 1
+    assert all(f.hasGeometry() for f in get("A").getFeatures())
+    # A value is missing: the file must not be replaced without asking
+    assert plugin.load_failed
+    assert any("needed changes" in t for _k, t in dialogs), dialogs
+    proj.write(path)
+    assert Path(path + ".mldata").read_bytes() == before
+
+
+@test
 def unknown_unreadable_type_is_reported_and_protected():
     Settings.set_mldata_embedded(False)
     path = new_project("t", "qgs")

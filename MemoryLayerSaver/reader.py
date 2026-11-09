@@ -80,9 +80,16 @@ class Reader:
         if not self._dstream:
             raise ValueError("Layer stream not open for reading")
         ds = self._dstream
+        # Features the memory provider refused as they were, which were loaded with NULL values
+        self.refused = []
 
         while True:
             if ds.atEnd():
+                if self.refused:
+                    # Values are missing: reported as a failed load, so that the file is not replaced without asking
+                    shown = "; ".join(self.refused[:5])
+                    more = f" (and {len(self.refused) - 5} more)" if len(self.refused) > 5 else ""
+                    raise ValueError(f"{len(self.refused)} features needed changes to load: {shown}{more}")
                 return
             layer_id = ds.readQString()
             self.check_status()
@@ -155,12 +162,34 @@ class Reader:
                     geom = QgsGeometry()
                     geom.fromWkb(wkb)
                     feat.setGeometry(geom)
-                dp.addFeatures([feat])
+                self.add_feature(layer, feat)
         finally:
             # Whatever precedes an error is worth having
             layer.setSubsetString(ss)
             layer.updateFields()
             layer.updateExtents()
+
+    def add_feature(self, layer, feat):
+        """The memory provider refuses a feature with a value it cannot convert to the type of its
+        field: its incompatible values are made NULL, as losing a value is better than losing the feature"""
+        dp = layer.dataProvider()
+        if dp.addFeatures([feat])[0]:
+            return
+        error = dp.lastError()
+        values = []
+        for field, value in zip(dp.fields(), feat.attributes()):
+            try:
+                values.append(field.convertCompatible(value))
+            except (TypeError, ValueError):
+                values.append(None)
+        feat.setAttributes(values)
+        if not dp.addFeatures([feat])[0]:
+            feat.setAttributes([None] * len(values))
+            error += " (all its values were dropped)"
+            if not dp.addFeatures([feat])[0]:
+                raise ValueError(f"A feature of {layer.name()} was refused by the memory provider: {dp.lastError()}")
+        log_warning(f"{layer.name()}: {error}")
+        self.refused.append(f"{layer.name()}: {error}")
 
     def read_value(self):
         ds = self._dstream
